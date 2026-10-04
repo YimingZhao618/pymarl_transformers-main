@@ -20,6 +20,10 @@ class StarCraft2Env2Wrapper(StarCraftCapabilityEnvWrapper):
     """
 
     def __init__(self, **kwargs):
+        # These PyMARL-wide switches are consumed by other env adapters and
+        # are not arguments accepted by the official SMACv2 StarCraft2Env.
+        kwargs.pop("obs_entity_mode", None)
+        kwargs.pop("state_entity_mode", None)
         self.removal_max_attempts = int(kwargs.pop("removal_max_attempts", 5))
         self.kill_unit_step_mul = int(kwargs.pop("kill_unit_step_mul", 2))
         self.reset_max_attempts = int(kwargs.pop("reset_max_attempts", 3))
