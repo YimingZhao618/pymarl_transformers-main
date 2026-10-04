@@ -51,8 +51,8 @@ Use `sc2_v2_protoss` or `sc2_v2_zerg` for those generated maps. The default
 configuration is 10v10; override both `env_args.capability_config.n_units` and
 `env_args.capability_config.n_enemies` together to change team sizes.
 
-For the persistent critical-removal baseline protocol, selector training,
-evaluation pairing and audit requirements, see
+For the persistent fixed-slot removal baseline protocol, evaluation pairing
+and audit requirements, see
 [RECOMARL_TRANSFQMIX_BASELINE.md](RECOMARL_TRANSFQMIX_BASELINE.md).
 
 Finally, install the pytorch version that is more suitable for your system. For example (for GPU support with CUDA 11.6): ```pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116```.

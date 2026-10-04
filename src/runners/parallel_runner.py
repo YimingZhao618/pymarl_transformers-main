@@ -10,9 +10,6 @@ import traceback
 import json
 import hashlib
 
-from .frozen_qmix_selector import FrozenQMIXSelector
-
-
 class RecoverableEnvError(RuntimeError):
     """Discard the incomplete vector episode and retry all eight clients."""
 
@@ -41,6 +38,7 @@ class ParallelRunner:
         self.ep_runner = None
         self.recovery_protocol = bool(getattr(args, "recovery_protocol", False))
         self.failure_active = False
+        self.failure_agent_id = int(getattr(args, "failure_agent_id", 3))
         self.eval_seed_base = int(getattr(args, "eval_seed_base", 180000))
         self.eval_episode_cursor = 0
         self.eval_wins = 0
@@ -64,7 +62,6 @@ class ParallelRunner:
                     manifest.get("eval_seed_base") != self.eval_seed_base:
                 raise ValueError("Held-out manifest does not match the requested SMACv2 map/team")
             self.eval_manifest_sha256 = hashlib.sha256(raw).hexdigest()
-        self.selector_sha256 = None
         self.discarded_episode_batches = 0
 
         # Make subprocesses for the envs
@@ -75,7 +72,7 @@ class ParallelRunner:
             env_args[i]["seed"] += i
 
         self.ps = [Process(target=env_worker, args=(worker_conn, CloudpickleWrapper(partial(env_fn, **env_arg)),
-                                                   self.recovery_protocol, getattr(args, "failure_selector_path", "")))
+                                                   self.recovery_protocol, self.failure_agent_id))
                             for env_arg, worker_conn in zip(env_args, self.worker_conns)]
 
         for p in self.ps:
@@ -208,10 +205,9 @@ class ParallelRunner:
 
         self.batch.update(pre_transition_data, ts=0)
         if self.recovery_protocol:
-            if self.failure_active:
-                for data in reset_data:
-                    if data["selector_sha256"] != self.selector_sha256:
-                        raise RuntimeError("Worker selector checksum differs from the recorded frozen selector")
+            expected_id = self.failure_agent_id if self.failure_active else -1
+            if any(data["removed_agent_id"] != expected_id for data in reset_data):
+                raise RuntimeError("Worker removed an unexpected allied slot")
             if test_mode:
                 self.eval_removed_slots.extend(data["removed_agent_id"] for data in reset_data)
                 self.eval_configs.extend(data["episode_config"] for data in reset_data)
@@ -390,9 +386,8 @@ class ParallelRunner:
         stats.clear()
 
 
-def env_worker(remote, env_fn, recovery_protocol=False, selector_path=""):
+def env_worker(remote, env_fn, recovery_protocol=False, failure_agent_id=3):
     env = None
-    selector = None
     while True:
         try:
             cmd, data = remote.recv()
@@ -423,12 +418,7 @@ def env_worker(remote, env_fn, recovery_protocol=False, selector_path=""):
                               episode_config=reset_args.get("episode_config"))
                     removed_agent_id = -1
                     if reset_args.get("failure_active", False):
-                        if selector is None:
-                            info = env.get_env_info()
-                            selector = FrozenQMIXSelector(selector_path, info["n_agents"], info["state_shape"])
-                        initial_state = env.get_state()
-                        initial_mask = env.get_agent_alive_mask()
-                        removed_agent_id, _ = selector.select(initial_state, initial_mask)
+                        removed_agent_id = failure_agent_id
                         env.remove_agent(removed_agent_id)
                     mask = [float(i != removed_agent_id) for i in range(env.n_agents)]
                     remote.send({
@@ -437,7 +427,6 @@ def env_worker(remote, env_fn, recovery_protocol=False, selector_path=""):
                         "obs": env.get_obs(),
                         "participating_mask": [[value] for value in mask],
                         "removed_agent_id": removed_agent_id,
-                        "selector_sha256": selector.sha256 if selector is not None else None,
                         "episode_config": _json_safe(env.env.episode_config) if reset_args.get("episode_seed") is not None else None,
                     })
                 else:

@@ -1,5 +1,5 @@
-# Original TransfQMix network/optimizer settings plus the shared recovery protocol.
-# failure_selector_path must point to the SAME frozen selector mixer for all methods.
+# Original TransfQMix network/optimizer settings plus fixed-slot recovery.
+# After the failure boundary, physically remove allied slot 3 before each episode.
 action_selector: epsilon_greedy
 epsilon_start: 1.0
 epsilon_finish: 0.05
@@ -40,7 +40,7 @@ recovery_protocol: True
 failure_t_env: 5000000
 recovery_budget: 5000000
 t_max: 10000000
-failure_selector_path: ""
+failure_agent_id: 3
 eval_seed_base: 180000
 env_batch_retry_limit: 3
 post_failure_epsilon_start: 0.24

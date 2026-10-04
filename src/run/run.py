@@ -17,7 +17,6 @@ from runners import REGISTRY as r_REGISTRY
 from controllers import REGISTRY as mac_REGISTRY
 from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
-from runners.frozen_qmix_selector import FrozenQMIXSelector
 from utils.recovery_metrics import summarize_recovery
 
 
@@ -120,12 +119,8 @@ def run_sequential(args, logger):
             raise ValueError("Recovery protocol requires 32 greedy evaluation episodes")
         if int(args.env_batch_retry_limit) < 1 or int(args.post_failure_epsilon_anneal_time) < 1:
             raise ValueError("Environment retry and recovery annealing limits must be positive")
-        if not getattr(args, "failure_selector_path", ""):
-            raise ValueError("Specify failure_selector_path to a shared frozen QMIX mixer checkpoint")
-        candidate = args.failure_selector_path
-        candidate = os.path.join(candidate, "mixer.th") if os.path.isdir(candidate) else candidate
-        if not os.path.isfile(candidate):
-            raise FileNotFoundError("Shared frozen selector mixer is missing: {}".format(candidate))
+        if int(args.failure_agent_id) != 3:
+            raise ValueError("Recovery protocol requires fixed allied slot 3")
         failure_t_env = int(args.failure_t_env)
         recovery_budget = int(args.recovery_budget)
         if failure_t_env < 1 or recovery_budget < 1 or int(args.t_max) != failure_t_env + recovery_budget:
@@ -144,18 +139,19 @@ def run_sequential(args, logger):
     audit = None
     audit_path = None
     if recovery_protocol:
-        selector = FrozenQMIXSelector(args.failure_selector_path,
-                                      env_info["n_agents"], env_info["state_shape"])
-        runner.selector_sha256 = selector.sha256
+        failure_agent_id = int(args.failure_agent_id)
+        if not 0 <= failure_agent_id < env_info["n_agents"]:
+            runner.close_env()
+            raise ValueError("Fixed failure slot {} is outside the {} allied slots".format(
+                failure_agent_id, env_info["n_agents"]))
         audit = {
             "method": args.name,
             "map_name": args.env_args["map_name"],
             "n_agents": env_info["n_agents"],
             "n_enemies": args.env_args["capability_config"]["n_enemies"],
             "seed": args.seed,
-            "selector_checkpoint": selector.path,
-            "selector_sha256": selector.sha256,
-            "selection_rule": "argmax_i mean_h abs(W1_i,h(s0)); initial complete-team state",
+            "removal_rule": "fixed allied slot before the first policy step",
+            "failure_agent_id": failure_agent_id,
             "eval_seed_base": runner.eval_seed_base,
             "eval_manifest_path": runner.eval_manifest_path or None,
             "eval_manifest_sha256": runner.eval_manifest_sha256,
