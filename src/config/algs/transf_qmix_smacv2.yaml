@@ -34,4 +34,7 @@ td_lambda: 0.6
 
 obs_agent_id: False
 obs_last_action: False
+env_args:
+  obs_entity_mode: True
+  state_entity_mode: True
 name: "transf_qmix_smacv2"
