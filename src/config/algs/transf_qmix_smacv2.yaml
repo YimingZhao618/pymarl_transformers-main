@@ -1,0 +1,37 @@
+# TransfQMix on SMACv2. The entity adapter supplies variable-sized
+# entity metadata; parallel collection uses eight independent environments.
+action_selector: "epsilon_greedy"
+epsilon_start: 1.0
+epsilon_finish: 0.05
+epsilon_anneal_time: 100000
+
+runner: "parallel"
+batch_size_run: 8
+buffer_size: 5000
+batch_size: 32
+target_update_interval: 200
+
+mac: "n_mac"
+agent: "n_transf_smac"
+agent_output_type: q
+emb: 32
+heads: 4
+depth: 2
+ff_hidden_mult: 4
+dropout: 0.0
+
+mixer: "transf_mixer"
+mixer_emb: 32
+mixer_heads: 4
+mixer_depth: 2
+qmix_pos_func: "abs"
+
+learner: "nq_transf_learner"
+weight_decay: 0
+optimizer: "adam"
+lr: 0.001
+td_lambda: 0.6
+
+obs_agent_id: False
+obs_last_action: False
+name: "transf_qmix_smacv2"

@@ -32,7 +32,10 @@ class TransformerAgentSmac(nn.Module):
         )
 
         # outputs
-        self.q_basic  = nn.Linear(args.emb, 6) # moving actions
+        # SMACv1 has 6 non-attack actions; SMACv2 exposes this count via
+        # env_info (e.g. movement/FOV/stop actions). Keep the SMACv1 default.
+        self.n_normal_actions = getattr(args, "n_normal_actions", 6)
+        self.q_basic  = nn.Linear(args.emb, self.n_normal_actions)
         self.q_entity = nn.Linear(args.emb, 1) # entity actions (attack)
 
     def init_hidden(self):

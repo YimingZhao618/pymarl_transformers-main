@@ -1,0 +1,52 @@
+# Original TransfQMix network/optimizer settings plus the shared recovery protocol.
+# failure_selector_path must point to the SAME frozen selector mixer for all methods.
+action_selector: epsilon_greedy
+epsilon_start: 1.0
+epsilon_finish: 0.05
+epsilon_anneal_time: 100000
+
+runner: parallel
+batch_size_run: 8
+buffer_size: 5000
+batch_size: 32
+target_update_interval: 200
+
+mac: n_mac
+agent: n_transf_smac
+agent_output_type: q
+emb: 32
+heads: 4
+depth: 2
+ff_hidden_mult: 4
+dropout: 0.0
+
+mixer: transf_mixer
+mixer_emb: 32
+mixer_heads: 4
+mixer_depth: 2
+qmix_pos_func: abs
+
+learner: nq_transf_learner
+weight_decay: 0
+optimizer: adam
+lr: 0.001
+td_lambda: 0.6
+
+obs_agent_id: False
+obs_last_action: False
+name: transf_qmix_recovery_smacv2
+
+recovery_protocol: True
+failure_t_env: 5000000
+recovery_budget: 5000000
+t_max: 10000000
+failure_selector_path: ""
+eval_seed_base: 180000
+env_batch_retry_limit: 3
+post_failure_epsilon_start: 0.24
+post_failure_epsilon_finish: 0.05
+post_failure_epsilon_anneal_time: 20000
+test_nepisode: 32
+test_interval: 10000
+save_model: True
+save_model_interval: 1000000

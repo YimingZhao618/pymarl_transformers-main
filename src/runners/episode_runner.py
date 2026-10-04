@@ -2,7 +2,6 @@ from envs import REGISTRY as env_REGISTRY
 from functools import partial
 from components.episode_buffer import EpisodeBatch
 import numpy as np
-import imageio
 
 
 
@@ -37,6 +36,7 @@ class EpisodeRunner:
         return self.env.get_env_info()
 
     def save_replay(self, path):
+        import imageio
         imageio.mimsave(path+'.gif', self.frames, duration=.04)
 
     def save_animation(self, path):

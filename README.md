@@ -35,6 +35,26 @@ If you want to run the codebase without docker, you can install the ```requireme
 
 You will also need to install StarCraft2 in your computer: with linux, you can use the ```bash install_sc2.sh``` script. You will also need [SMAC](https://github.com/oxwhirl/smac.git) with ```pip install git+https://github.com/oxwhirl/smac.git```. 
 
+### SMACv2
+
+This repository also includes the SMACv2 environment implementation and maps
+adapted from the local `newalg` project. Install the normal PySC2/StarCraft II
+dependencies and set `SC2PATH` to your StarCraft II installation. TransfQMix's
+entity agent and mixer consume padded entity-token inputs from the adapter.
+The SMACv2 TransfQMix config uses eight parallel environment clients:
+
+```bash
+python src/main.py --config=transf_qmix_smacv2 --env-config=sc2_v2_terran
+```
+
+Use `sc2_v2_protoss` or `sc2_v2_zerg` for those generated maps. The default
+configuration is 10v10; override both `env_args.capability_config.n_units` and
+`env_args.capability_config.n_enemies` together to change team sizes.
+
+For the persistent critical-removal baseline protocol, selector training,
+evaluation pairing and audit requirements, see
+[RECOMARL_TRANSFQMIX_BASELINE.md](RECOMARL_TRANSFQMIX_BASELINE.md).
+
 Finally, install the pytorch version that is more suitable for your system. For example (for GPU support with CUDA 11.6): ```pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116```.
 
 Then run the python commands as above. 

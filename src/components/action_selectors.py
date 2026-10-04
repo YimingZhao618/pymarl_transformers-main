@@ -118,12 +118,23 @@ class EpsilonGreedyActionSelector():
         self.schedule = DecayThenFlatSchedule(args.epsilon_start, args.epsilon_finish, args.epsilon_anneal_time,
                                               decay="linear")
         self.epsilon = self.schedule.eval(0)
+        self.post_failure_schedule = None
+        self.post_failure_start_t = None
+
+    def activate_post_failure(self, t_env, epsilon_start, epsilon_finish, anneal_time):
+        """Re-enable exploration at the shared recovery boundary."""
+        self.post_failure_start_t = int(t_env)
+        self.post_failure_schedule = DecayThenFlatSchedule(
+            float(epsilon_start), float(epsilon_finish), int(anneal_time), decay="linear")
         
 
     def select_action(self, agent_inputs, avail_actions, t_env, test_mode=False):
 
         # Assuming agent_inputs is a batch of Q-Values for each agent bav
-        self.epsilon = self.schedule.eval(t_env)
+        if self.post_failure_schedule is not None and t_env >= self.post_failure_start_t:
+            self.epsilon = self.post_failure_schedule.eval(t_env - self.post_failure_start_t)
+        else:
+            self.epsilon = self.schedule.eval(t_env)
 
         if test_mode:
             # Greedy action selection only

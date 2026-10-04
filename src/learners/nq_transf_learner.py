@@ -53,6 +53,14 @@ class NQTransfLearner:
         mask = batch["filled"][:, :-1].float()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         avail_actions = batch["avail_actions"]
+        # A physically removed slot remains in fixed-size PyMARL tensors, but
+        # contributes neither utility nor hidden representation to the mixer.
+        # Ordinary combat deaths are not masked here; only pre-episode removal is.
+        if "participating_mask" in batch.scheme:
+            participating_mask = batch["participating_mask"].float().squeeze(-1)
+        else:
+            participating_mask = th.ones(
+                batch.batch_size, self.args.n_agents, device=self.args.device)
         
         # Calculate estimated Q-Values
         self.mac.agent.train()
@@ -78,6 +86,7 @@ class NQTransfLearner:
 
         # Pick the Q-Values for the actions taken by each agent
         chosen_action_qvals_ = th.gather(mac_out[:, :-1], dim=3, index=actions).squeeze(3)  # Remove the last dim
+        chosen_action_qvals_ = chosen_action_qvals_ * participating_mask.unsqueeze(1)
 
         # Calculate the Q-Values necessary for the target
         with th.no_grad():
@@ -107,6 +116,7 @@ class NQTransfLearner:
             mac_out_detach[avail_actions == 0] = -9999999
             cur_max_actions = mac_out_detach.max(dim=3, keepdim=True)[1]
             target_max_qvals_ = th.gather(target_mac_out, 3, cur_max_actions).squeeze(3) # (batch_size, max_seq_length, n_agents)
+            target_max_qvals_ = target_max_qvals_ * participating_mask.unsqueeze(1)
             
             # Calculate n-step Q-Learning targets
             hyper_weights = self.target_mixer.init_hidden().expand(batch.batch_size, self.args.n_agents, -1)
@@ -114,7 +124,7 @@ class NQTransfLearner:
             for t in range(batch.max_seq_length):
                 target_mixer_out, hyper_weights = self.target_mixer(
                     target_max_qvals_[:, t].view(-1, 1, self.args.n_agents), # (batch, 1, n_agents)
-                    target_mac_hs[:, t],
+                    target_mac_hs[:, t] * participating_mask.unsqueeze(-1),
                     hyper_weights,
                     batch["state"][:, t],
                     batch["obs"][:, t]
@@ -139,7 +149,7 @@ class NQTransfLearner:
         for t in range(batch.max_seq_length - 1):
             mixer_out, hyper_weights = self.mixer(
                 chosen_action_qvals_[:, t].view(-1, 1, self.args.n_agents),
-                mac_hs[:, t,].detach(),
+                mac_hs[:, t,].detach() * participating_mask.unsqueeze(-1),
                 hyper_weights,
                 batch["state"][:, t],
                 batch["obs"][:, t])
